@@ -35,16 +35,16 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  // --- Global Request Logger ---
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
+  // --- API Router ---
+  const apiRouter = express.Router();
+
+  // Diagnostic Ping
+  apiRouter.get('/ping', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV });
   });
 
-  // --- API Routes ---
-  
   // Auth
-  app.post(['/api/login', '/api/login/'], (req, res) => {
+  apiRouter.post(['/login', '/login/'], (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, token: 'admin-session-token' });
@@ -54,22 +54,23 @@ async function startServer() {
   });
 
   // Creations
-  app.get('/api/creations', async (req, res) => {
+  apiRouter.get('/creations', async (req, res) => {
     try {
       const data = await fs.readJson(DATA_FILE);
-      res.json(data.creations);
+      res.json(data.creations || []);
     } catch (e) {
       res.status(500).json({ error: 'Failed to read data' });
     }
   });
 
-  app.post('/api/creations', async (req, res) => {
+  apiRouter.post('/creations', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
     
     try {
       const data = await fs.readJson(DATA_FILE);
       const newCreation = { ...req.body, id: Date.now().toString(), createdAt: new Date().toISOString() };
+      data.creations = data.creations || [];
       data.creations.unshift(newCreation);
       await fs.writeJson(DATA_FILE, data);
       res.json(newCreation);
@@ -78,12 +79,13 @@ async function startServer() {
     }
   });
 
-  app.put('/api/creations/:id', async (req, res) => {
+  apiRouter.put('/creations/:id', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
     try {
       const data = await fs.readJson(DATA_FILE);
+      data.creations = data.creations || [];
       const index = data.creations.findIndex((c: any) => c.id === req.params.id);
       if (index !== -1) {
         data.creations[index] = { ...data.creations[index], ...req.body, updatedAt: new Date().toISOString() };
@@ -97,12 +99,13 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/creations/:id', async (req, res) => {
+  apiRouter.delete('/creations/:id', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
     try {
       const data = await fs.readJson(DATA_FILE);
+      data.creations = data.creations || [];
       data.creations = data.creations.filter((c: any) => c.id !== req.params.id);
       await fs.writeJson(DATA_FILE, data);
       res.json({ success: true });
@@ -112,21 +115,22 @@ async function startServer() {
   });
 
   // Settings
-  app.get('/api/settings', async (req, res) => {
+  apiRouter.get('/settings', async (req, res) => {
     try {
       const data = await fs.readJson(DATA_FILE);
-      res.json(data.settings.contact);
+      res.json(data.settings?.contact || {});
     } catch (e) {
       res.status(500).json({ error: 'Failed to read settings' });
     }
   });
 
-  app.post('/api/settings', async (req, res) => {
+  apiRouter.post('/settings', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
     try {
       const data = await fs.readJson(DATA_FILE);
+      data.settings = data.settings || {};
       data.settings.contact = { ...req.body, updatedAt: new Date().toISOString() };
       await fs.writeJson(DATA_FILE, data);
       res.json(data.settings.contact);
@@ -135,7 +139,10 @@ async function startServer() {
     }
   });
 
-  // Catch-all for other /api requests
+  // Mount API router FIRST
+  app.use('/api', apiRouter);
+
+  // Catch-all for other /api requests to prevent falling through to static files
   app.all('/api/*', (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   });
