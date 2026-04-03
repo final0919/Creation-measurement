@@ -33,21 +33,13 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(cors());
-  app.use(bodyParser.json({ limit: '10mb' }));
-
-  // --- Request Logger (Debug) ---
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    next();
-  });
+  app.use(express.json({ limit: '10mb' }));
 
   // --- API Routes ---
-  const apiRouter = express.Router();
-
+  
   // Auth
-  apiRouter.post('/login', (req, res) => {
+  app.post('/api/login', (req, res) => {
     const { password } = req.body;
-    console.log('Login attempt with password:', password);
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, token: 'admin-session-token' });
     } else {
@@ -56,65 +48,91 @@ async function startServer() {
   });
 
   // Creations
-  apiRouter.get('/creations', async (req, res) => {
-    const data = await fs.readJson(DATA_FILE);
-    res.json(data.creations);
-  });
-
-  apiRouter.post('/creations', async (req, res) => {
-    const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
-    
-    const data = await fs.readJson(DATA_FILE);
-    const newCreation = { ...req.body, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    data.creations.unshift(newCreation);
-    await fs.writeJson(DATA_FILE, data);
-    res.json(newCreation);
-  });
-
-  apiRouter.put('/creations/:id', async (req, res) => {
-    const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
-
-    const data = await fs.readJson(DATA_FILE);
-    const index = data.creations.findIndex((c: any) => c.id === req.params.id);
-    if (index !== -1) {
-      data.creations[index] = { ...data.creations[index], ...req.body, updatedAt: new Date().toISOString() };
-      await fs.writeJson(DATA_FILE, data);
-      res.json(data.creations[index]);
-    } else {
-      res.status(404).send('Not found');
+  app.get('/api/creations', async (req, res) => {
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      res.json(data.creations);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to read data' });
     }
   });
 
-  apiRouter.delete('/creations/:id', async (req, res) => {
+  app.post('/api/creations', async (req, res) => {
+    const { token } = req.headers;
+    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+    
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      const newCreation = { ...req.body, id: Date.now().toString(), createdAt: new Date().toISOString() };
+      data.creations.unshift(newCreation);
+      await fs.writeJson(DATA_FILE, data);
+      res.json(newCreation);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to save data' });
+    }
+  });
+
+  app.put('/api/creations/:id', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
-    const data = await fs.readJson(DATA_FILE);
-    data.creations = data.creations.filter((c: any) => c.id !== req.params.id);
-    await fs.writeJson(DATA_FILE, data);
-    res.json({ success: true });
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      const index = data.creations.findIndex((c: any) => c.id === req.params.id);
+      if (index !== -1) {
+        data.creations[index] = { ...data.creations[index], ...req.body, updatedAt: new Date().toISOString() };
+        await fs.writeJson(DATA_FILE, data);
+        res.json(data.creations[index]);
+      } else {
+        res.status(404).send('Not found');
+      }
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to update data' });
+    }
+  });
+
+  app.delete('/api/creations/:id', async (req, res) => {
+    const { token } = req.headers;
+    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      data.creations = data.creations.filter((c: any) => c.id !== req.params.id);
+      await fs.writeJson(DATA_FILE, data);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to delete data' });
+    }
   });
 
   // Settings
-  apiRouter.get('/settings', async (req, res) => {
-    const data = await fs.readJson(DATA_FILE);
-    res.json(data.settings.contact);
+  app.get('/api/settings', async (req, res) => {
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      res.json(data.settings.contact);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to read settings' });
+    }
   });
 
-  apiRouter.post('/settings', async (req, res) => {
+  app.post('/api/settings', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
-    const data = await fs.readJson(DATA_FILE);
-    data.settings.contact = { ...req.body, updatedAt: new Date().toISOString() };
-    await fs.writeJson(DATA_FILE, data);
-    res.json(data.settings.contact);
+    try {
+      const data = await fs.readJson(DATA_FILE);
+      data.settings.contact = { ...req.body, updatedAt: new Date().toISOString() };
+      await fs.writeJson(DATA_FILE, data);
+      res.json(data.settings.contact);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to save settings' });
+    }
   });
 
-  // Mount API router
-  app.use('/api', apiRouter);
+  // Catch-all for other /api requests
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
 
   // --- Vite / Static Files ---
   if (process.env.NODE_ENV !== 'production') {
