@@ -447,8 +447,16 @@ const HomeView = ({ onContactClick, searchQuery, setSearchQuery, creations, onLo
             ))}
           </div>
           {filteredProducts.length === 0 && (
-            <div className="text-center py-20">
-              <p className="text-on-surface-variant font-medium">未找到相关造物，请尝试其他关键词。</p>
+            <div className="text-center py-20 space-y-6">
+              <div className="bg-surface-container-low p-10 rounded-3xl inline-block editorial-shadow">
+                <Icons.BatteryCharging className="w-16 h-16 text-primary/20 mx-auto mb-4" />
+                <p className="text-on-surface-variant font-medium">未找到相关造物，请尝试其他关键词。</p>
+                <p className="text-[10px] text-on-surface-variant/60 mt-2 uppercase tracking-widest font-bold">No Creations Found</p>
+              </div>
+              <div className="text-[10px] text-on-surface-variant/40 flex items-center justify-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-green-500"></div>
+                <span>云端同步已就绪</span>
+              </div>
             </div>
           )}
         </section>
@@ -1158,8 +1166,12 @@ export default function App() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Creation));
       setCreations(data);
       setIsLoading(false);
-    }, (error) => {
+    }, (error: any) => {
       console.error('Creations error:', error);
+      setToast({ 
+        message: `数据库连接失败 (${error.code || 'unknown'})。请确保域名已授权。`, 
+        type: 'error' 
+      });
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -1202,39 +1214,31 @@ export default function App() {
     setIsSaving(true);
     const adminEmail = '1242923551@qq.com';
     try {
-      // First try to sign in
       await loginWithEmail(adminEmail, pass);
       setToast({ message: '登录成功！', type: 'success' });
       setView('dashboard');
     } catch (error: any) {
-      console.error('Login error code:', error.code);
-      
-      // If user doesn't exist, try to create it (bootstrap)
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        try {
-          // We only want to auto-register if the password is the expected one
-          if (pass === 'admin123') {
+      console.error('Login error:', error);
+      let msg = '登录失败';
+      if (error.code === 'auth/unauthorized-domain') {
+        msg = '域名未授权：请在 Firebase 控制台将当前域名添加到授权列表。';
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        if (pass === 'admin123') {
+          try {
             await registerAdmin(adminEmail, pass);
             setToast({ message: '管理员账号初始化成功！', type: 'success' });
             setView('dashboard');
             return;
+          } catch (regError: any) {
+            msg = '初始化失败：' + regError.code;
           }
-        } catch (regError: any) {
-          console.error('Registration error:', regError.code);
-          if (regError.code === 'auth/email-already-in-use') {
-            setToast({ message: '密码错误。账号已存在，请使用初始密码或重置密码。', type: 'error' });
-            return;
-          }
+        } else {
+          msg = '密码错误或账号不存在';
         }
-      }
-      
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setToast({ message: '密码错误，请重试。', type: 'error' });
-      } else if (error.code === 'auth/too-many-requests') {
-        setToast({ message: '尝试次数过多，请稍后再试。', type: 'error' });
       } else {
-        setToast({ message: '登录失败：' + error.message, type: 'error' });
+        msg = `错误 (${error.code || 'unknown'}): ${error.message}`;
       }
+      setToast({ message: msg, type: 'error' });
     } finally {
       setIsSaving(false);
     }
