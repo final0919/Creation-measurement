@@ -430,7 +430,10 @@ const HomeView = ({ onContactClick, searchQuery, setSearchQuery, creations, onLo
                     >
                       {product.tag}
                     </span>
-                    {React.createElement(Icons[product.icon as keyof typeof Icons], { className: "text-primary w-5 h-5" })}
+                    {(() => {
+                      const IconComponent = Icons[product.icon as keyof typeof Icons] || Icons.BatteryCharging;
+                      return <IconComponent className="text-primary w-5 h-5" />;
+                    })()}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-on-surface">{product.title}</h3>
@@ -466,12 +469,16 @@ const DashboardView = ({
   onPublishClick, 
   creations, 
   onDelete, 
-  onEdit 
+  onEdit,
+  onSeed,
+  isSaving
 }: { 
   onPublishClick: () => void, 
   creations: Creation[],
   onDelete: (id: string) => void,
-  onEdit: (creation: Creation) => void
+  onEdit: (creation: Creation) => void,
+  onSeed: () => void,
+  isSaving: boolean
 }) => (
   <div className="ml-72 p-12 min-h-screen space-y-12">
     <header className="flex justify-between items-end">
@@ -479,13 +486,25 @@ const DashboardView = ({
         <h2 className="text-5xl font-headline font-extrabold text-primary tracking-tight">链接概览</h2>
         <p className="text-on-surface-variant mt-2 font-medium">欢迎回来，这是您目前的数字生态看板。</p>
       </div>
-      <button 
-        onClick={onPublishClick}
-        className="px-8 py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform flex items-center gap-2"
-      >
-        <Icons.PlusCircle className="w-4 h-4" />
-        发布新链接
-      </button>
+      <div className="flex gap-4">
+        {creations.length === 0 && (
+          <button 
+            onClick={onSeed}
+            disabled={isSaving}
+            className="px-8 py-3 rounded-full border-2 border-primary text-primary font-bold hover:bg-primary/5 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <Icons.Zap className="w-4 h-4" />
+            导入演示数据
+          </button>
+        )}
+        <button 
+          onClick={onPublishClick}
+          className="px-8 py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform flex items-center gap-2"
+        >
+          <Icons.PlusCircle className="w-4 h-4" />
+          发布新链接
+        </button>
+      </div>
     </header>
 
     <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -954,7 +973,10 @@ const PublishView = ({
                     formData.icon === iconName ? "bg-primary text-on-primary shadow-lg" : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
                   )}
                 >
-                  {React.createElement(Icons[iconName as keyof typeof Icons], { className: "w-6 h-6" })}
+                  {(() => {
+                    const IconComponent = Icons[iconName as keyof typeof Icons] || Icons.BatteryCharging;
+                    return <IconComponent className="w-6 h-6" />;
+                  })()}
                 </button>
               ))}
             </div>
@@ -1098,6 +1120,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
 // --- Main App ---
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<View>('home');
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1134,8 +1157,10 @@ export default function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Creation));
       setCreations(data);
+      setIsLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'creations');
+      console.error('Creations error:', error);
+      setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -1144,10 +1169,18 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'settings', 'contact'), (docSnap) => {
       if (docSnap.exists()) {
-        setContactConfig(docSnap.data() as ContactConfig);
+        const data = docSnap.data() as ContactConfig;
+        setContactConfig(prev => ({
+          ...prev,
+          ...data,
+          title: data.title || prev.title,
+          description: data.description || prev.description,
+          email: data.email || prev.email,
+          xiaohongshu: data.xiaohongshu || prev.xiaohongshu
+        }));
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/contact');
+      console.error('Contact config error:', error);
     });
     return () => unsubscribe();
   }, []);
@@ -1313,60 +1346,124 @@ export default function App() {
     });
   };
 
+  const seedDemoData = async () => {
+    if (!isAdmin) return;
+    setIsSaving(true);
+    try {
+      const demoCreations = [
+        {
+          title: '造物测 1.0',
+          description: '这是一个演示作品，展示了造物测的核心理念：将设计美学与实用功能完美结合。',
+          tag: '演示',
+          tagColor: '#6366f1',
+          image: 'https://picsum.photos/seed/zaowu1/800/1000',
+          url: 'https://zaowuce.design',
+          icon: 'BatteryCharging',
+          createdAt: Timestamp.now(),
+          authorUid: auth.currentUser?.uid || 'system'
+        },
+        {
+          title: '灵感看板',
+          description: '汇集全球顶尖设计师的创意灵感，为您提供源源不断的创作动力。',
+          tag: '灵感',
+          tagColor: '#ec4899',
+          image: 'https://picsum.photos/seed/zaowu2/800/1000',
+          url: 'https://zaowuce.design/inspiration',
+          icon: 'Zap',
+          createdAt: Timestamp.now(),
+          authorUid: auth.currentUser?.uid || 'system'
+        }
+      ];
+      for (const c of demoCreations) {
+        await addDoc(collection(db, 'creations'), c);
+      }
+      setToast({ message: '演示数据已成功导入！', type: 'success' });
+    } catch (error) {
+      setToast({ message: '导入失败，请检查数据库权限', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const LoadingView = () => (
+    <div className="min-h-screen flex items-center justify-center bg-surface">
+      <div className="flex flex-col items-center gap-6">
+        <Icons.BatteryCharging className="w-16 h-16 text-primary animate-battery-pulse" />
+        <div className="space-y-2 text-center">
+          <p className="text-on-surface font-bold text-lg tracking-tight">正在加载造物空间...</p>
+          <p className="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold opacity-50">Synchronizing Digital Assets</p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <ErrorBoundary>
       <div className="font-sans selection:bg-primary-container selection:text-on-primary-container">
         {isAdmin && view !== 'home' && view !== 'login' && <Sidebar currentView={view as any} setView={setView} />}
         
         <AnimatePresence mode="wait">
-          <motion.div
-            key={view}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            {view === 'home' && (
-              <HomeView 
-                onContactClick={() => setIsContactOpen(true)} 
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                creations={creations}
-                onLogoClick={handleLogoClick}
-              />
-            )}
-            {view === 'login' && (
-              <LoginView 
-                onLogin={handleLogin} 
-                onReset={handleResetPassword}
-                onGoogleLogin={handleGoogleLogin}
-                isLoggingIn={isSaving}
-              />
-            )}
-            {isAdmin && view === 'dashboard' && (
-              <DashboardView 
-                onPublishClick={() => { setEditingCreation(null); setView('publish'); }} 
-                creations={creations}
-                onDelete={(id) => setConfirmDelete(id)}
-                onEdit={(c) => { setEditingCreation(c); setView('publish'); }}
-              />
-            )}
-            {isAdmin && view === 'contact-config' && (
-              <ContactConfigView 
-                config={contactConfig}
-                onSave={handleSaveContact}
-                isSaving={isSaving}
-              />
-            )}
-            {isAdmin && view === 'publish' && (
-              <PublishView 
-                onSave={handleSaveCreation}
-                onCancel={() => { setEditingCreation(null); setView('dashboard'); }}
-                initialData={editingCreation}
-                isSaving={isSaving}
-              />
-            )}
-          </motion.div>
+          {isLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <LoadingView />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              {view === 'home' && (
+                <HomeView 
+                  onContactClick={() => setIsContactOpen(true)} 
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  creations={creations}
+                  onLogoClick={handleLogoClick}
+                />
+              )}
+              {view === 'login' && (
+                <LoginView 
+                  onLogin={handleLogin} 
+                  onReset={handleResetPassword}
+                  onGoogleLogin={handleGoogleLogin}
+                  isLoggingIn={isSaving}
+                />
+              )}
+              {isAdmin && view === 'dashboard' && (
+                <DashboardView 
+                  onPublishClick={() => { setEditingCreation(null); setView('publish'); }} 
+                  creations={creations}
+                  onDelete={(id) => setConfirmDelete(id)}
+                  onEdit={(c) => { setEditingCreation(c); setView('publish'); }}
+                  onSeed={seedDemoData}
+                  isSaving={isSaving}
+                />
+              )}
+              {isAdmin && view === 'contact-config' && (
+                <ContactConfigView 
+                  config={contactConfig}
+                  onSave={handleSaveContact}
+                  isSaving={isSaving}
+                />
+              )}
+              {isAdmin && view === 'publish' && (
+                <PublishView 
+                  onSave={handleSaveCreation}
+                  onCancel={() => { setEditingCreation(null); setView('dashboard'); }}
+                  initialData={editingCreation}
+                  isSaving={isSaving}
+                />
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>
 
         <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} config={contactConfig} />
