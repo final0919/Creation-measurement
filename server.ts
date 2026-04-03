@@ -35,11 +35,19 @@ async function startServer() {
   app.use(cors());
   app.use(bodyParser.json({ limit: '10mb' }));
 
+  // --- Request Logger (Debug) ---
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+
   // --- API Routes ---
+  const apiRouter = express.Router();
 
   // Auth
-  app.post('/api/login', (req, res) => {
+  apiRouter.post('/login', (req, res) => {
     const { password } = req.body;
+    console.log('Login attempt with password:', password);
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, token: 'admin-session-token' });
     } else {
@@ -48,12 +56,12 @@ async function startServer() {
   });
 
   // Creations
-  app.get('/api/creations', async (req, res) => {
+  apiRouter.get('/creations', async (req, res) => {
     const data = await fs.readJson(DATA_FILE);
     res.json(data.creations);
   });
 
-  app.post('/api/creations', async (req, res) => {
+  apiRouter.post('/creations', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
     
@@ -64,7 +72,7 @@ async function startServer() {
     res.json(newCreation);
   });
 
-  app.put('/api/creations/:id', async (req, res) => {
+  apiRouter.put('/creations/:id', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
@@ -79,7 +87,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/creations/:id', async (req, res) => {
+  apiRouter.delete('/creations/:id', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
@@ -90,12 +98,12 @@ async function startServer() {
   });
 
   // Settings
-  app.get('/api/settings', async (req, res) => {
+  apiRouter.get('/settings', async (req, res) => {
     const data = await fs.readJson(DATA_FILE);
     res.json(data.settings.contact);
   });
 
-  app.post('/api/settings', async (req, res) => {
+  apiRouter.post('/settings', async (req, res) => {
     const { token } = req.headers;
     if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
 
@@ -104,6 +112,9 @@ async function startServer() {
     await fs.writeJson(DATA_FILE, data);
     res.json(data.settings.contact);
   });
+
+  // Mount API router
+  app.use('/api', apiRouter);
 
   // --- Vite / Static Files ---
   if (process.env.NODE_ENV !== 'production') {
