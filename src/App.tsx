@@ -2,25 +2,6 @@ import React, { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Icons } from './components/Icons';
 import { cn } from './lib/utils';
-import { 
-  db, 
-  auth, 
-  collection, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  doc, 
-  setDoc, 
-  addDoc, 
-  deleteDoc, 
-  updateDoc, 
-  Timestamp,
-  onAuthStateChanged,
-  loginWithEmail,
-  registerAdmin,
-  resetPassword,
-  signInWithGoogle
-} from './firebase';
 
 // --- Types ---
 type View = 'home' | 'dashboard' | 'contact-config' | 'publish' | 'login';
@@ -34,8 +15,8 @@ interface Creation {
   image: string;
   url: string;
   icon: keyof typeof Icons;
-  createdAt: any;
-  authorUid: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 interface ContactConfig {
@@ -44,58 +25,26 @@ interface ContactConfig {
   email: string;
   xiaohongshu: string;
   qrCode?: string;
-  updatedAt: any;
+  updatedAt: string;
 }
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
+// --- API Helpers ---
+const API_BASE = '/api';
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
+const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('admin_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'token': token } : {}),
+    ...options.headers,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `API Error: ${response.status}`);
+  }
+  return response.json();
 };
 
 
@@ -228,8 +177,8 @@ const Sidebar = ({ currentView, setView }: { currentView: View, setView: (v: Vie
     </button>
     <button 
       onClick={() => {
-        auth.signOut();
-        setView('home');
+        localStorage.removeItem('admin_token');
+        window.location.reload();
       }}
       className="mt-2 text-xs font-bold text-red-500 hover:underline"
     >
@@ -995,7 +944,7 @@ const PublishView = ({
   );
 };
 
-const LoginView = ({ onLogin, onReset, onGoogleLogin, isLoggingIn }: { onLogin: (pass: string) => void, onReset: () => void, onGoogleLogin: () => void, isLoggingIn: boolean }) => {
+const LoginView = ({ onLogin, isLoggingIn }: { onLogin: (pass: string) => void, isLoggingIn: boolean }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
@@ -1047,27 +996,6 @@ const LoginView = ({ onLogin, onReset, onGoogleLogin, isLoggingIn }: { onLogin: 
               {isLoggingIn ? '验证中...' : '验证并进入'}
             </button>
           </form>
-          <div className="text-center space-y-4">
-            <button 
-              onClick={onReset}
-              disabled={isLoggingIn}
-              className="text-xs text-primary font-bold hover:underline disabled:opacity-50 block w-full"
-            >
-              忘记密码？发送重置邮件
-            </button>
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-on-surface-variant/10"></span></div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-on-surface-variant/40 bg-surface-container-lowest px-2">或者</div>
-            </div>
-            <button 
-              onClick={onGoogleLogin}
-              disabled={isLoggingIn}
-              className="w-full py-3 bg-surface-container-high text-on-surface rounded-2xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-surface-container-highest transition-all"
-            >
-              <Icons.Chrome className="w-4 h-4" />
-              使用 Google 账号登录 (救援通道)
-            </button>
-          </div>
         </div>
         
         <p className="text-center text-[10px] text-on-surface-variant/60 leading-relaxed">
@@ -1095,15 +1023,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError:
 
   render() {
     if (this.state.hasError) {
-      let errorMessage = "出错了，请稍后再试。";
-      try {
-        const parsed = JSON.parse(this.state.error.message);
-        if (parsed.error) {
-          errorMessage = `Firestore 错误: ${parsed.error} (${parsed.operationType})`;
-        }
-      } catch (e) {
-        errorMessage = this.state.error.message || errorMessage;
-      }
+      const errorMessage = this.state.error?.message || "出错了，请稍后再试。";
 
       return (
         <div className="min-h-screen flex items-center justify-center bg-surface p-6">
@@ -1144,114 +1064,51 @@ export default function App() {
     description: '扫描二维码关注造物测官方小红书，获取更多关于设计美学与造物灵感的深度资讯。',
     email: 'hello@zaowuce.design',
     xiaohongshu: 'zaowu_official',
-    updatedAt: new Date()
+    updatedAt: new Date().toISOString()
   });
 
-  // Auth listener
+  // Auth check
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      const isUserAdmin = !!(user && user.email === '1242923551@qq.com');
-      setIsAdmin(isUserAdmin);
-      if (isUserAdmin && view === 'login') {
-        setView('dashboard');
-      }
-    });
-    return () => unsubscribe();
+    const token = localStorage.getItem('admin_token');
+    setIsAdmin(!!token);
+    if (token && view === 'login') {
+      setView('dashboard');
+    }
   }, [view]);
 
-  // Creations listener
+  // Initial data fetch
   useEffect(() => {
-    const q = query(collection(db, 'creations'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Creation));
-      setCreations(data);
-      setIsLoading(false);
-    }, (error: any) => {
-      console.error('Creations error:', error);
-      setToast({ 
-        message: `数据库连接失败 (${error.code || 'unknown'})。请确保域名已授权。`, 
-        type: 'error' 
-      });
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Contact Config listener
-  useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'settings', 'contact'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as ContactConfig;
-        setContactConfig(prev => ({
-          ...prev,
-          ...data,
-          title: data.title || prev.title,
-          description: data.description || prev.description,
-          email: data.email || prev.email,
-          xiaohongshu: data.xiaohongshu || prev.xiaohongshu
-        }));
+    const fetchData = async () => {
+      try {
+        const [creationsData, settingsData] = await Promise.all([
+          apiFetch('/creations'),
+          apiFetch('/settings')
+        ]);
+        setCreations(creationsData);
+        setContactConfig(prev => ({ ...prev, ...settingsData }));
+      } catch (error) {
+        console.error('Fetch error:', error);
+        setToast({ message: '数据加载失败，请检查网络连接', type: 'error' });
+      } finally {
+        setIsLoading(false);
       }
-    }, (error) => {
-      console.error('Contact config error:', error);
-    });
-    return () => unsubscribe();
+    };
+    fetchData();
   }, []);
-
-  const handleGoogleLogin = async () => {
-    setIsSaving(true);
-    try {
-      await signInWithGoogle();
-      setToast({ message: 'Google 登录成功！', type: 'success' });
-      setView('dashboard');
-    } catch (error: any) {
-      setToast({ message: 'Google 登录失败：' + error.message, type: 'error' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleLogin = async (pass: string) => {
     setIsSaving(true);
-    const adminEmail = '1242923551@qq.com';
     try {
-      await loginWithEmail(adminEmail, pass);
+      const result = await apiFetch('/login', {
+        method: 'POST',
+        body: JSON.stringify({ password: pass })
+      });
+      localStorage.setItem('admin_token', result.token);
+      setIsAdmin(true);
       setToast({ message: '登录成功！', type: 'success' });
       setView('dashboard');
     } catch (error: any) {
-      console.error('Login error:', error);
-      let msg = '登录失败';
-      if (error.code === 'auth/unauthorized-domain') {
-        msg = '域名未授权：请在 Firebase 控制台将当前域名添加到授权列表。';
-      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        if (pass === 'admin123') {
-          try {
-            await registerAdmin(adminEmail, pass);
-            setToast({ message: '管理员账号初始化成功！', type: 'success' });
-            setView('dashboard');
-            return;
-          } catch (regError: any) {
-            msg = '初始化失败：' + regError.code;
-          }
-        } else {
-          msg = '密码错误或账号不存在';
-        }
-      } else {
-        msg = `错误 (${error.code || 'unknown'}): ${error.message}`;
-      }
-      setToast({ message: msg, type: 'error' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    const adminEmail = '1242923551@qq.com';
-    setIsSaving(true);
-    try {
-      await resetPassword(adminEmail);
-      setToast({ message: '重置邮件已发送至您的邮箱，请查收。', type: 'success' });
-    } catch (error: any) {
-      setToast({ message: '重置失败：' + error.message, type: 'error' });
+      setToast({ message: '登录失败：' + error.message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -1259,48 +1116,31 @@ export default function App() {
 
   const handleSaveCreation = async (data: Partial<Creation>) => {
     if (!data.title || !data.description || !data.tag || !data.url) {
-      setToast({ message: '请填写所有必填字段（包括跳转链接）', type: 'error' });
-      return;
-    }
-
-    if (!auth.currentUser) {
-      setToast({ message: '请先登录管理员账号', type: 'error' });
+      setToast({ message: '请填写所有必填字段', type: 'error' });
       return;
     }
 
     setIsSaving(true);
     try {
-      const creationData = {
-        title: data.title,
-        description: data.description,
-        tag: data.tag,
-        tagColor: data.tagColor || '#6366f1',
-        image: data.image || '',
-        url: data.url,
-        icon: data.icon || 'BatteryCharging',
-        authorUid: auth.currentUser.uid
-      };
-
-      console.log('Saving creation data:', creationData);
-
       if (editingCreation) {
-        await updateDoc(doc(db, 'creations', editingCreation.id), {
-          ...creationData,
-          updatedAt: Timestamp.now()
+        const updated = await apiFetch(`/creations/${editingCreation.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data)
         });
+        setCreations(prev => prev.map(c => c.id === updated.id ? updated : c));
         setToast({ message: '作品更新成功！', type: 'success' });
       } else {
-        await addDoc(collection(db, 'creations'), {
-          ...creationData,
-          createdAt: Timestamp.now()
+        const created = await apiFetch('/creations', {
+          method: 'POST',
+          body: JSON.stringify(data)
         });
+        setCreations(prev => [created, ...prev]);
         setToast({ message: '新作品发布成功！', type: 'success' });
       }
       setView('dashboard');
       setEditingCreation(null);
-    } catch (error) {
-      setToast({ message: '操作失败，请重试', type: 'error' });
-      handleFirestoreError(error, editingCreation ? OperationType.UPDATE : OperationType.CREATE, 'creations');
+    } catch (error: any) {
+      setToast({ message: '操作失败：' + error.message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -1308,30 +1148,26 @@ export default function App() {
 
   const handleDeleteCreation = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'creations', id));
+      await apiFetch(`/creations/${id}`, { method: 'DELETE' });
+      setCreations(prev => prev.filter(c => c.id !== id));
       setToast({ message: '作品已成功删除', type: 'success' });
       setConfirmDelete(null);
-    } catch (error) {
-      setToast({ message: '删除失败', type: 'error' });
-      handleFirestoreError(error, OperationType.DELETE, `creations/${id}`);
+    } catch (error: any) {
+      setToast({ message: '删除失败：' + error.message, type: 'error' });
     }
   };
 
   const handleSaveContact = async (newConfig: ContactConfig) => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'settings', 'contact'), {
-        title: newConfig.title,
-        description: newConfig.description,
-        email: newConfig.email,
-        xiaohongshu: newConfig.xiaohongshu,
-        qrCode: newConfig.qrCode || '',
-        updatedAt: Timestamp.now()
+      const updated = await apiFetch('/settings', {
+        method: 'POST',
+        body: JSON.stringify(newConfig)
       });
+      setContactConfig(updated);
       setToast({ message: '联系方式配置已同步！', type: 'success' });
-    } catch (error) {
-      setToast({ message: '同步失败', type: 'error' });
-      handleFirestoreError(error, OperationType.WRITE, 'settings/contact');
+    } catch (error: any) {
+      setToast({ message: '同步失败：' + error.message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -1344,7 +1180,6 @@ export default function App() {
         setView(isAdmin ? 'dashboard' : 'login');
         return 0;
       }
-      // Reset clicks after 2 seconds of inactivity
       setTimeout(() => setSecretClicks(0), 2000);
       return next;
     });
@@ -1362,9 +1197,7 @@ export default function App() {
           tagColor: '#6366f1',
           image: 'https://picsum.photos/seed/zaowu1/800/1000',
           url: 'https://zaowuce.design',
-          icon: 'BatteryCharging',
-          createdAt: Timestamp.now(),
-          authorUid: auth.currentUser?.uid || 'system'
+          icon: 'BatteryCharging'
         },
         {
           title: '灵感看板',
@@ -1373,17 +1206,19 @@ export default function App() {
           tagColor: '#ec4899',
           image: 'https://picsum.photos/seed/zaowu2/800/1000',
           url: 'https://zaowuce.design/inspiration',
-          icon: 'Zap',
-          createdAt: Timestamp.now(),
-          authorUid: auth.currentUser?.uid || 'system'
+          icon: 'Zap'
         }
       ];
       for (const c of demoCreations) {
-        await addDoc(collection(db, 'creations'), c);
+        const created = await apiFetch('/creations', {
+          method: 'POST',
+          body: JSON.stringify(c)
+        });
+        setCreations(prev => [created, ...prev]);
       }
       setToast({ message: '演示数据已成功导入！', type: 'success' });
-    } catch (error) {
-      setToast({ message: '导入失败，请检查数据库权限', type: 'error' });
+    } catch (error: any) {
+      setToast({ message: '导入失败：' + error.message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -1436,8 +1271,6 @@ export default function App() {
               {view === 'login' && (
                 <LoginView 
                   onLogin={handleLogin} 
-                  onReset={handleResetPassword}
-                  onGoogleLogin={handleGoogleLogin}
                   isLoggingIn={isSaving}
                 />
               )}
