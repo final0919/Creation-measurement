@@ -399,12 +399,18 @@ const HomeView = ({ onContactClick, searchQuery, setSearchQuery, creations, onLo
             <div className="text-center py-20 space-y-6">
               <div className="bg-surface-container-low p-10 rounded-3xl inline-block editorial-shadow">
                 <Icons.BatteryCharging className="w-16 h-16 text-primary/20 mx-auto mb-4" />
-                <p className="text-on-surface-variant font-medium">未找到相关造物，请尝试其他关键词。</p>
-                <p className="text-[10px] text-on-surface-variant/60 mt-2 uppercase tracking-widest font-bold">No Creations Found</p>
+                <p className="text-on-surface-variant font-medium">未找到相关造物，或数据正在同步中。</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-6 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:scale-105 transition-transform"
+                >
+                  点击刷新重试
+                </button>
+                <p className="text-[10px] text-on-surface-variant/60 mt-4 uppercase tracking-widest font-bold">No Creations Found</p>
               </div>
               <div className="text-[10px] text-on-surface-variant/40 flex items-center justify-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-green-500"></div>
-                <span>云端同步已就绪</span>
+                <span>本地服务器已就绪</span>
               </div>
             </div>
           )}
@@ -1077,22 +1083,25 @@ export default function App() {
   }, [view]);
 
   // Initial data fetch
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [creationsData, settingsData] = await Promise.all([
+        apiFetch('/creations'),
+        apiFetch('/settings')
+      ]);
+      setCreations(creationsData);
+      setContactConfig(prev => ({ ...prev, ...settingsData }));
+      setToast(null);
+    } catch (error) {
+      console.error('Fetch error:', error);
+      setToast({ message: '数据加载失败，请点击重试', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [creationsData, settingsData] = await Promise.all([
-          apiFetch('/creations'),
-          apiFetch('/settings')
-        ]);
-        setCreations(creationsData);
-        setContactConfig(prev => ({ ...prev, ...settingsData }));
-      } catch (error) {
-        console.error('Fetch error:', error);
-        setToast({ message: '数据加载失败，请检查网络连接', type: 'error' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
