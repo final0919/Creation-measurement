@@ -673,7 +673,7 @@ const ContactConfigView = ({
                   className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all resize-none" 
                   placeholder="输入弹窗主标题，可直接回车换行" 
                   rows={2}
-                  value={formData.title}
+                  value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
@@ -683,7 +683,7 @@ const ContactConfigView = ({
                   className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all resize-none" 
                   placeholder="输入引导关注或业务介绍文案..." 
                   rows={3} 
-                  value={formData.description}
+                  value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
               </div>
@@ -695,7 +695,7 @@ const ContactConfigView = ({
                     <input 
                       className="w-full bg-surface-container-low border-none rounded-2xl pl-12 pr-6 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all" 
                       type="email" 
-                      value={formData.email}
+                      value={formData.email || ''}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
@@ -707,7 +707,7 @@ const ContactConfigView = ({
                     <input 
                       className="w-full bg-surface-container-low border-none rounded-2xl pl-12 pr-6 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all" 
                       type="text" 
-                      value={formData.xiaohongshu}
+                      value={formData.xiaohongshu || ''}
                       onChange={(e) => setFormData({ ...formData, xiaohongshu: e.target.value })}
                     />
                   </div>
@@ -844,7 +844,7 @@ const PublishView = ({
                   className="w-full bg-transparent border-0 border-b border-outline-variant/30 py-4 text-2xl font-bold focus:border-primary transition-all placeholder:text-outline/30" 
                   placeholder="输入极简且具吸引力的标题..." 
                   type="text"
-                  value={formData.title}
+                  value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
@@ -855,7 +855,7 @@ const PublishView = ({
                     className="w-full bg-transparent border-0 border-b border-outline-variant/30 py-4 text-on-surface focus:border-primary transition-all placeholder:text-outline/30" 
                     placeholder="创意, 交互, 极简..." 
                     type="text"
-                    value={formData.tag}
+                    value={formData.tag || ''}
                     onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
                   />
                 </div>
@@ -865,10 +865,10 @@ const PublishView = ({
                     <input 
                       className="w-12 h-12 rounded-lg border-none cursor-pointer p-0" 
                       type="color"
-                      value={formData.tagColor}
+                      value={formData.tagColor || '#6366f1'}
                       onChange={(e) => setFormData({ ...formData, tagColor: e.target.value })}
                     />
-                    <span className="text-sm font-mono text-on-surface-variant">{formData.tagColor}</span>
+                    <span className="text-sm font-mono text-on-surface-variant">{formData.tagColor || '#6366f1'}</span>
                   </div>
                 </div>
               </div>
@@ -880,7 +880,7 @@ const PublishView = ({
                     className="w-full bg-transparent border-0 border-b border-outline-variant/30 py-4 pl-8 text-on-surface focus:border-primary transition-all placeholder:text-outline/30" 
                     placeholder="https://example.com/test-link" 
                     type="url"
-                    value={formData.url}
+                    value={formData.url || ''}
                     onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                   />
                 </div>
@@ -896,7 +896,7 @@ const PublishView = ({
             <textarea 
               className="w-full bg-surface-container-low border-none rounded-2xl p-6 text-on-surface-variant focus:ring-2 focus:ring-primary-container/30 transition-all resize-none min-h-[240px]" 
               placeholder="描述此链接背后的设计意图与核心体验..."
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             ></textarea>
           </section>
@@ -924,7 +924,7 @@ const PublishView = ({
                   type="text" 
                   placeholder="或者输入图片 URL" 
                   className="w-full bg-surface/50 rounded-full px-4 py-2 text-xs focus:ring-1 focus:ring-primary outline-none text-center"
-                  value={formData.image}
+                  value={formData.image || ''}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                 />
                 <p className="text-[10px] text-on-surface-variant mt-4 uppercase font-bold">Recommended: 1200x1200px</p>
