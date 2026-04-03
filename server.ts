@@ -35,10 +35,16 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
+  // --- Global Request Logger ---
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
   // --- API Routes ---
   
   // Auth
-  app.post('/api/login', (req, res) => {
+  app.post(['/api/login', '/api/login/'], (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, token: 'admin-session-token' });

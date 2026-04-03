@@ -39,7 +39,8 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  const url = endpoint.startsWith('/') ? `/api${endpoint}` : `/api/${endpoint}`;
+  const response = await fetch(url, { ...options, headers });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `API Error: ${response.status}`);
