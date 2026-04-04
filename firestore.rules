@@ -1,120 +1,25 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: creations
-// Document ID: auto-generated
-// Fields:
-//   - title: string (required, 1-100 chars)
-//   - description: string (required, 1-1000 chars)
-//   - tag: string (required, 1-50 chars)
-//   - tagColor: string (required, hex color)
-//   - image: string (required, URL or Base64)
-//   - url: string (required, valid URL)
-//   - icon: string (required, 1-50 chars)
-//   - createdAt: timestamp (required, immutable)
-//   - authorUid: string (required, immutable, matches request.auth.uid)
-//
-// Collection: settings
-// Document ID: 'contact'
-// Fields:
-//   - title: string (required, 1-100 chars)
-//   - description: string (required, 1-1000 chars)
-//   - email: string (required, valid email)
-//   - xiaohongshu: string (required, 1-50 chars)
-//   - qrCode: string (optional, URL or Base64)
-//   - updatedAt: timestamp (required)
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() && 
-        (request.auth.token.email == "1242923551@qq.com" || 
-         (request.auth.token.firebase.identities.email.size() > 0 && 
-          request.auth.token.firebase.identities.email[0] == "1242923551@qq.com") ||
-         request.auth.uid == "IWoyjj6PUnSyMkKLHo5jISN5TE23");
-    }
-
-    function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidCreation(data) {
-      return hasRequiredFields(['title', 'description', 'tag', 'tagColor', 'image', 'url', 'icon', 'createdAt', 'authorUid']) &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
-             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
-             data.tag is string && data.tag.size() > 0 && data.tag.size() <= 50 &&
-             data.tagColor is string && data.tagColor.size() > 0 &&
-             data.image is string &&
-             data.url is string && data.url.size() > 0 &&
-             data.icon is string && data.icon.size() > 0 && data.icon.size() <= 50 &&
-             data.createdAt is timestamp &&
-             data.authorUid == request.auth.uid;
-    }
-
-    function isValidContactConfig(data) {
-      return hasRequiredFields(['title', 'description', 'email', 'xiaohongshu', 'updatedAt']) &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
-             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
-             isValidEmail(data.email) &&
-             data.xiaohongshu is string && data.xiaohongshu.size() > 0 && data.xiaohongshu.size() <= 50 &&
-             (!('qrCode' in data) || data.qrCode is string) &&
-             data.updatedAt is timestamp;
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    match /creations/{creationId} {
+    // 任何人都可以读取所有数据
+    match /{document=**} {
       allow read: if true;
-      allow create: if isAdmin() && isValidCreation(request.resource.data);
-      allow update: if isAdmin() && isValidCreation(request.resource.data) &&
-                    request.resource.data.createdAt == resource.data.createdAt &&
-                    request.resource.data.authorUid == resource.data.authorUid;
-      allow delete: if isAdmin();
     }
 
+    // 管理配置集合 - 用于存储管理员密码
+    match /admin/{docId} {
+      allow read, write: if true;
+    }
+
+    // 作品集合 - 允许创建和更新
+    match /creations/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['title', 'description', 'tag']);
+      allow update, delete: if true;
+    }
+
+    // 设置集合 - 联系信息
     match /settings/contact {
-      allow read: if true;
-      allow write: if isAdmin() && isValidContactConfig(request.resource.data);
-    }
-
-    // Default deny
-    match /{path=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }

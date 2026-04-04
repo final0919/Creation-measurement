@@ -65,22 +65,32 @@ export async function setAdminPassword(password: string): Promise<void> {
 export async function getCreations(): Promise<Creation[]> {
   const q = query(collection(db, CREATIONS_COLLECTION), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Creation[];
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      // Convert Firestore timestamp to string if needed
+      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis().toString() : data.createdAt,
+      updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis().toString() : data.updatedAt
+    } as Creation;
+  });
 }
 
 // Create a new creation
 export async function createCreation(data: Omit<Creation, 'id' | 'createdAt'>): Promise<Creation> {
-  const now = Timestamp.now().toMillis().toString();
-  const newCreation: Creation = {
+  const now = Timestamp.now();
+  const newCreation: any = {
     ...data,
     id: Date.now().toString(),
     createdAt: now
   };
   await addDoc(collection(db, CREATIONS_COLLECTION), newCreation);
-  return newCreation;
+  return {
+    ...data,
+    id: newCreation.id,
+    createdAt: now.toMillis().toString()
+  };
 }
 
 // Update a creation
@@ -110,16 +120,23 @@ export async function getSettings(): Promise<ContactConfig> {
       updatedAt: new Date().toISOString()
     };
   }
-  return settingsDoc.data() as ContactConfig;
+  const data = settingsDoc.data();
+  return {
+    ...data,
+    updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis().toString() : data.updatedAt
+  } as ContactConfig;
 }
 
 // Save settings
 export async function saveSettings(data: ContactConfig): Promise<ContactConfig> {
-  const now = Timestamp.now().toMillis().toString();
+  const now = Timestamp.now();
   const settings: ContactConfig = {
     ...data,
-    updatedAt: now
+    updatedAt: now.toMillis().toString()
   };
-  await setDoc(doc(db, SETTINGS_COLLECTION, 'contact'), settings, { merge: true });
+  await setDoc(doc(db, SETTINGS_COLLECTION, 'contact'), {
+    ...settings,
+    updatedAt: now
+  }, { merge: true });
   return settings;
 }
