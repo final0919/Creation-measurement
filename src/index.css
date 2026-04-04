@@ -1,44 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import "tailwindcss";
-
-@theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-headline: "Plus Jakarta Sans", sans-serif;
-  
-  --color-primary: #7a532a;
-  --color-primary-container: #d9a777;
-  --color-on-primary: #fff0e5;
-  --color-on-primary-container: #482904;
-  
-  --color-secondary: #5a5e42;
-  --color-secondary-container: #e1e6c2;
-  --color-on-secondary-container: #505439;
-  
-  --color-tertiary-container: #eff8cf;
-  --color-on-tertiary-container: #575f40;
-  
-  --color-surface: #f7f7f2;
-  --color-surface-bright: #f7f7f2;
-  --color-surface-dim: #d3d5cf;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f1ec;
-  --color-surface-container: #e8e9e3;
-  --color-surface-container-high: #e2e3dd;
-  --color-surface-container-highest: #dcddd7;
-  
-  --color-on-surface: #2d2f2c;
-  --color-on-surface-variant: #5a5c58;
-  --color-outline: #767773;
-  --color-outline-variant: #adada9;
-
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
-  --radius-xl: 2rem;
-}
 
 @layer base {
   body {
-    @apply bg-surface text-on-surface font-sans antialiased;
+    @apply bg-[#f7f7f2] text-[#2d2f2c] font-sans antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-md bg-[#f7f7f2]/80;
   }
 }
 
@@ -59,10 +33,6 @@
 
 .animate-shake {
   animation: shake 0.2s ease-in-out 0s 2;
-}
-
-.glass-panel {
-  @apply backdrop-blur-md bg-surface/80;
 }
 
 .editorial-shadow {
