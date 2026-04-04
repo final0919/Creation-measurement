@@ -34,7 +34,12 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  // --- Global Request Logger (Crucial for debugging 404s) ---
+  // --- Root Health Check (To verify if the server is even reachable) ---
+  app.get('/server-health', (req, res) => {
+    res.send(`<h1>Server is Running</h1><p>Time: ${new Date().toISOString()}</p><p>Mode: ${process.env.NODE_ENV}</p>`);
+  });
+
+  // --- Global Request Logger ---
   app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
@@ -50,7 +55,11 @@ async function startServer() {
 
   // Auth
   apiRouter.post(['/login', '/login/'], (req, res) => {
-    const { password } = req.body;
+    const { password } = req.body || {};
+    console.log('Login attempt received');
+    if (!password) {
+      return res.status(400).json({ message: '请提供密码' });
+    }
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, token: 'admin-session-token' });
     } else {
