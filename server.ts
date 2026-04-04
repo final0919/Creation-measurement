@@ -27,9 +27,21 @@ if (!fs.existsSync(DATA_FILE)) {
   });
 }
 
+// Build frontend if not exists
+const distPath = path.join(process.cwd(), 'dist');
+if (!fs.existsSync(distPath)) {
+  console.log('Building frontend...');
+  const { execSync } = await import('child_process');
+  try {
+    execSync('npm run build', { stdio: 'inherit', cwd: process.cwd() });
+  } catch (e) {
+    console.error('Build failed:', e);
+  }
+}
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
