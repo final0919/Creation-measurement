@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Creation": {
+      "title": "Creation",
+      "description": "A creative work or link displayed on the home page.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the creation." },
+        "description": { "type": "string", "description": "A detailed description." },
+        "tag": { "type": "string", "description": "A category tag." },
+        "image": { "type": "string", "description": "URL to the cover image." },
+        "type": { "type": "string", "enum": ["standard", "large"], "description": "Display type on the grid." },
+        "icon": { "type": "string", "description": "Icon name from lucide-react." },
+        "url": { "type": "string", "description": "The target URL." },
+        "status": { "type": "string", "enum": ["published", "draft", "offline"], "description": "Publication status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp." },
+        "authorUid": { "type": "string", "description": "UID of the creator." }
+      },
+      "required": ["title", "description", "tag", "image", "type", "icon", "status", "createdAt", "authorUid"]
+    },
+    "ContactConfig": {
+      "title": "ContactConfig",
+      "description": "Global configuration for contact information.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Modal title." },
+        "description": { "type": "string", "description": "Modal description." },
+        "email": { "type": "string", "format": "email", "description": "Official email." },
+        "wechat": { "type": "string", "description": "WeChat ID." },
+        "qrCode": { "type": "string", "description": "URL to the QR code image." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." }
+      },
+      "required": ["title", "description", "email", "wechat", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/creations": {
+      "schema": { "$ref": "Creation" },
+      "description": "Collection of all creative works."
+    },
+    "/settings/contact": {
+      "schema": { "$ref": "ContactConfig" },
+      "description": "Global contact settings."
+    }
+  }
+}
