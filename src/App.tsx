@@ -351,10 +351,10 @@ const HomeView = ({ onContactClick, searchQuery, setSearchQuery, creations, onLo
             <span className="text-2xl font-bold tracking-tighter text-primary hidden sm:inline">造物测</span>
           </div>
           
-          <div className="flex-1 max-w-xl relative flex items-center bg-surface-container-low rounded-full p-1 border border-outline-variant/10 focus-within:ring-2 focus-within:ring-primary-container transition-all">
+          <div className="flex-1 max-w-xl relative flex items-center bg-surface-container-low rounded-full p-1 border border-outline-variant/10 transition-all">
             <Icons.Search className="absolute left-4 text-on-surface-variant w-4 h-4" />
             <input 
-              className="w-full bg-transparent border-none focus:ring-0 pl-11 pr-4 py-2 text-sm font-medium text-on-surface placeholder:text-outline" 
+              className="w-full bg-transparent border-none focus:ring-0 focus:outline-none pl-11 pr-4 py-2 text-sm font-medium text-on-surface placeholder:text-outline" 
               placeholder="搜索" 
               type="text"
               value={searchQuery}
@@ -365,7 +365,7 @@ const HomeView = ({ onContactClick, searchQuery, setSearchQuery, creations, onLo
           <div className="flex items-center gap-4 shrink-0">
             <button 
               onClick={onContactClick}
-              className="bg-primary text-on-primary font-bold hover:scale-105 active:scale-95 transition-all px-6 py-2 rounded-full shadow-lg shadow-primary/20 text-sm"
+              className="bg-primary/70 text-on-primary font-bold hover:scale-105 active:scale-95 transition-all px-6 py-2 rounded-full shadow-lg shadow-primary/20 text-sm"
             >
               联系我们
             </button>
