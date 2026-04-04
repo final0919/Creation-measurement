@@ -28,19 +28,48 @@ interface ContactConfig {
   updatedAt: string;
 }
 
-// --- Firebase Service ---
-import {
-  getCreations,
-  getSettings,
-  createCreation,
-  updateCreation,
-  deleteCreation,
-  saveSettings,
-  verifyAdminPassword,
-  setAdminPassword,
-  type Creation,
-  type ContactConfig
-} from './services/firebaseService';
+// --- API Helpers ---
+const API_BASE = '/api';
+
+const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('admin_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'token': token } : {}),
+    ...options.headers,
+  };
+
+  const url = endpoint.startsWith('/') ? `/api${endpoint}` : `/api/${endpoint}`;
+  const response = await fetch(url, { ...options, headers });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `API Error: ${response.status}`);
+  }
+  return response.json();
+};
+
+// Re-export types for use in the component
+export interface Creation {
+  id: string;
+  title: string;
+  description: string;
+  tag: string;
+  tagColor: string;
+  image: string;
+  url: string;
+  icon: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ContactConfig {
+  title: string;
+  description: string;
+  email: string;
+  xiaohongshu: string;
+  qrCode?: string;
+  updatedAt: string;
+}
 
 
 // --- Components ---
@@ -1082,8 +1111,8 @@ export default function App() {
     setIsLoading(true);
     try {
       const [creationsData, settingsData] = await Promise.all([
-        getCreations(),
-        getSettings()
+        apiFetch('/creations'),
+        apiFetch('/settings')
       ]);
       setCreations(creationsData);
       setContactConfig(prev => ({ ...prev, ...settingsData }));
@@ -1103,15 +1132,14 @@ export default function App() {
   const handleLogin = async (pass: string) => {
     setIsSaving(true);
     try {
-      const isValid = await verifyAdminPassword(pass);
-      if (isValid) {
-        localStorage.setItem('admin_token', 'admin-session-token');
-        setIsAdmin(true);
-        setToast({ message: '登录成功！', type: 'success' });
-        setView('dashboard');
-      } else {
-        throw new Error('密码错误');
-      }
+      const result = await apiFetch('/login', {
+        method: 'POST',
+        body: JSON.stringify({ password: pass })
+      });
+      localStorage.setItem('admin_token', result.token);
+      setIsAdmin(true);
+      setToast({ message: '登录成功！', type: 'success' });
+      setView('dashboard');
     } catch (error: any) {
       setToast({ message: '登录失败：' + error.message, type: 'error' });
     } finally {
@@ -1128,11 +1156,17 @@ export default function App() {
     setIsSaving(true);
     try {
       if (editingCreation) {
-        await updateCreation(editingCreation.id, data);
-        setCreations(prev => prev.map(c => c.id === editingCreation.id ? { ...c, ...data } : c));
+        const updated = await apiFetch(`/creations/${editingCreation.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data)
+        });
+        setCreations(prev => prev.map(c => c.id === updated.id ? updated : c));
         setToast({ message: '作品更新成功！', type: 'success' });
       } else {
-        const created = await createCreation(data as any);
+        const created = await apiFetch('/creations', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
         setCreations(prev => [created, ...prev]);
         setToast({ message: '新作品发布成功！', type: 'success' });
       }
@@ -1147,7 +1181,7 @@ export default function App() {
 
   const handleDeleteCreation = async (id: string) => {
     try {
-      await deleteCreation(id);
+      await apiFetch(`/creations/${id}`, { method: 'DELETE' });
       setCreations(prev => prev.filter(c => c.id !== id));
       setToast({ message: '作品已成功删除', type: 'success' });
       setConfirmDelete(null);
@@ -1159,7 +1193,10 @@ export default function App() {
   const handleSaveContact = async (newConfig: ContactConfig) => {
     setIsSaving(true);
     try {
-      const updated = await saveSettings(newConfig);
+      const updated = await apiFetch('/settings', {
+        method: 'POST',
+        body: JSON.stringify(newConfig)
+      });
       setContactConfig(updated);
       setToast({ message: '联系方式配置已同步！', type: 'success' });
     } catch (error: any) {
@@ -1206,7 +1243,10 @@ export default function App() {
         }
       ];
       for (const c of demoCreations) {
-        const created = await createCreation(c as any);
+        const created = await apiFetch('/creations', {
+          method: 'POST',
+          body: JSON.stringify(c)
+        });
         setCreations(prev => [created, ...prev]);
       }
       setToast({ message: '演示数据已成功导入！', type: 'success' });
