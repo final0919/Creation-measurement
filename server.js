@@ -27,7 +27,7 @@ if (!fs.existsSync(DATA_FILE)) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -97,7 +97,7 @@ apiRouter.put(['/creations/:id', '/creations/:id/'], async (req, res) => {
   try {
     const data = await fs.readJson(DATA_FILE);
     data.creations = data.creations || [];
-    const index = data.creations.findIndex((c: any) => c.id === req.params.id);
+    const index = data.creations.findIndex((c) => c.id === req.params.id);
     if (index !== -1) {
       data.creations[index] = { ...data.creations[index], ...req.body, updatedAt: new Date().toISOString() };
       await fs.writeJson(DATA_FILE, data);
@@ -117,7 +117,7 @@ apiRouter.delete(['/creations/:id', '/creations/:id/'], async (req, res) => {
   try {
     const data = await fs.readJson(DATA_FILE);
     data.creations = data.creations || [];
-    data.creations = data.creations.filter((c: any) => c.id !== req.params.id);
+    data.creations = data.creations.filter((c) => c.id !== req.params.id);
     await fs.writeJson(DATA_FILE, data);
     res.json({ success: true });
   } catch (e) {
