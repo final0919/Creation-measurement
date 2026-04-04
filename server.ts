@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -35,6 +34,12 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
+  // --- Global Request Logger (Crucial for debugging 404s) ---
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
   // --- API Router ---
   const apiRouter = express.Router();
 
@@ -54,18 +59,18 @@ async function startServer() {
   });
 
   // Creations
-  apiRouter.get('/creations', async (req, res) => {
+  apiRouter.get(['/creations', '/creations/'], async (req, res) => {
     try {
       const data = await fs.readJson(DATA_FILE);
       res.json(data.creations || []);
     } catch (e) {
-      res.status(500).json({ error: 'Failed to read data' });
+      res.status(500).json({ message: 'Failed to read data' });
     }
   });
 
-  apiRouter.post('/creations', async (req, res) => {
+  apiRouter.post(['/creations', '/creations/'], async (req, res) => {
     const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+    if (token !== 'admin-session-token') return res.status(403).json({ message: 'Forbidden' });
     
     try {
       const data = await fs.readJson(DATA_FILE);
@@ -75,13 +80,13 @@ async function startServer() {
       await fs.writeJson(DATA_FILE, data);
       res.json(newCreation);
     } catch (e) {
-      res.status(500).json({ error: 'Failed to save data' });
+      res.status(500).json({ message: 'Failed to save data' });
     }
   });
 
-  apiRouter.put('/creations/:id', async (req, res) => {
+  apiRouter.put(['/creations/:id', '/creations/:id/'], async (req, res) => {
     const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+    if (token !== 'admin-session-token') return res.status(403).json({ message: 'Forbidden' });
 
     try {
       const data = await fs.readJson(DATA_FILE);
@@ -92,16 +97,16 @@ async function startServer() {
         await fs.writeJson(DATA_FILE, data);
         res.json(data.creations[index]);
       } else {
-        res.status(404).send('Not found');
+        res.status(404).json({ message: 'Creation not found' });
       }
     } catch (e) {
-      res.status(500).json({ error: 'Failed to update data' });
+      res.status(500).json({ message: 'Failed to update data' });
     }
   });
 
-  apiRouter.delete('/creations/:id', async (req, res) => {
+  apiRouter.delete(['/creations/:id', '/creations/:id/'], async (req, res) => {
     const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+    if (token !== 'admin-session-token') return res.status(403).json({ message: 'Forbidden' });
 
     try {
       const data = await fs.readJson(DATA_FILE);
@@ -110,23 +115,23 @@ async function startServer() {
       await fs.writeJson(DATA_FILE, data);
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ error: 'Failed to delete data' });
+      res.status(500).json({ message: 'Failed to delete data' });
     }
   });
 
   // Settings
-  apiRouter.get('/settings', async (req, res) => {
+  apiRouter.get(['/settings', '/settings/'], async (req, res) => {
     try {
       const data = await fs.readJson(DATA_FILE);
       res.json(data.settings?.contact || {});
     } catch (e) {
-      res.status(500).json({ error: 'Failed to read settings' });
+      res.status(500).json({ message: 'Failed to read settings' });
     }
   });
 
-  apiRouter.post('/settings', async (req, res) => {
+  apiRouter.post(['/settings', '/settings/'], async (req, res) => {
     const { token } = req.headers;
-    if (token !== 'admin-session-token') return res.status(403).send('Forbidden');
+    if (token !== 'admin-session-token') return res.status(403).json({ message: 'Forbidden' });
 
     try {
       const data = await fs.readJson(DATA_FILE);
@@ -135,7 +140,7 @@ async function startServer() {
       await fs.writeJson(DATA_FILE, data);
       res.json(data.settings.contact);
     } catch (e) {
-      res.status(500).json({ error: 'Failed to save settings' });
+      res.status(500).json({ message: 'Failed to save settings' });
     }
   });
 
@@ -144,7 +149,7 @@ async function startServer() {
 
   // Catch-all for other /api requests to prevent falling through to static files
   app.all('/api/*', (req, res) => {
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+    res.status(404).json({ message: `API route not found: ${req.method} ${req.url}` });
   });
 
   // --- Vite / Static Files ---
