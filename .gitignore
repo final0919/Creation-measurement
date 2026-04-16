@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# 部署相关
+data.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
