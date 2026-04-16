@@ -1090,10 +1090,10 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [secretClicks, setSecretClicks] = useState(0);
   const [contactConfig, setContactConfig] = useState<ContactConfig>({
-    title: '联系造物者',
-    description: '扫描二维码关注造物测官方小红书，获取更多关于设计美学与造物灵感的深度资讯。',
-    email: 'hello@zaowuce.design',
-    xiaohongshu: 'zaowu_official',
+    title: '需要网页激活码、题库、游戏玩法等内容就来联系我们',
+    description: '可以小红书扫码或者直接搜索账号，全网唯一账号:造物测，有什么疑问请发送邮箱!谢谢',
+    email: '1242923551@qq.com',
+    xiaohongshu: '503498197',
     updatedAt: new Date().toISOString()
   });
 
