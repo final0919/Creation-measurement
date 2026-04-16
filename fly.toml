@@ -1,0 +1,40 @@
+# fly.toml app configuration file generated for zaowuce on 2026-04-16T10:20:00+08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'zaowuce'
+primary_region = 'hkg'
+
+[build]
+  build_command = "npm install && npm run build"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[http_service.checks]]
+  interval = '10s'
+  timeout = '5s'
+  grace_period = '5s'
+  method = 'GET'
+  path = '/api/ping'
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
+
+[mounts]
+  source = "zaowuce_data"
+  destination = "/data"
+
+# 数据持久化卷配置
+# 这会创建一个永久存储卷，重启后数据不会丢失

@@ -7,10 +7,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_FILE = path.join(process.cwd(), 'data.json');
+// 数据文件路径 - 使用 Fly.io 的持久化存储卷
+const DATA_FILE = process.env.FLY_DATA_DIR
+  ? path.join(process.env.FLY_DATA_DIR, 'data.json')
+  : path.join(process.cwd(), 'data.json');
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// Ensure data file exists
+// 确保数据文件存在
 if (!fs.existsSync(DATA_FILE)) {
   fs.writeJsonSync(DATA_FILE, {
     creations: [],
@@ -24,6 +28,7 @@ if (!fs.existsSync(DATA_FILE)) {
       }
     }
   });
+  console.log('数据文件已创建:', DATA_FILE);
 }
 
 const app = express();
@@ -34,7 +39,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Root Health Check
 app.get('/server-health', (req, res) => {
-  res.send(`<h1>Server is Running</h1><p>Time: ${new Date().toISOString()}</p>`);
+  res.send(`<h1>Server is Running</h1><p>Time: ${new Date().toISOString()}</p><p>Data: ${DATA_FILE}</p>`);
 });
 
 // Global Request Logger
@@ -173,4 +178,5 @@ if (fs.existsSync(distPath)) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Data file: ${DATA_FILE}`);
 });
